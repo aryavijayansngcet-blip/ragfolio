@@ -7,14 +7,19 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any, Dict
 try:
-    from .rag_query import answer_question
+    from .rag_query import answer_question, answer_question_debug
 except ImportError:
-    from rag_query import answer_question
+    from rag_query import answer_question, answer_question_debug
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("ragfolio")
-
+def get_resume_content():
+    try:
+        with open("resume.md", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Resume file not found."
 app = FastAPI(
     title="Ragfolio RAG API",
     description="An orchestration layer for querying resume data using RAG.",
@@ -54,6 +59,12 @@ class AskResponse(BaseModel):
     answer: str
 
 
+class PortfolioResponse(BaseModel):
+    about: str
+    skills: list[str]
+    experience: list[dict[str, Any]]
+    projects: list[dict[str, Any]]
+
 @app.get("/api/health")
 async def health():
     """
@@ -80,11 +91,22 @@ async def ask(request: AskRequest):
         # Log the incoming question
         logger.debug(f"Incoming question: {request.question}")
 
-        # Integrate with the RAG query engine
-        answer = answer_question(request.question)
+        # Integrate with the RAG query engine using debug path
+        answer, debug_info = answer_question_debug(request.question)
 
-        # Log the response
-        logger.debug(f"Generated answer: {answer}")
+        # Log observability data
+        logger.debug("--- RAG OBSERVABILITY ---")
+        logger.debug(f"Question: {request.question}")
+        logger.debug("Retrieved Items:")
+        for item in debug_info.get("retrieval", {}).get("retrieved", []):
+            logger.debug(f"  - Source/ID: {item.get('id') or item.get('metadata', {}).get('source', 'unknown')}")
+            logger.debug(f"    Distance: {item.get('distance', 'N/A')}")
+            logger.debug(f"    Preview: {item.get('snippet', '')}")
+            
+        gemini_info = debug_info.get("gemini", {})
+        logger.debug(f"Exact Gemini Input Prompt:\n{gemini_info.get('gemini_prompt', '')}")
+        logger.debug(f"Gemini Output:\n{gemini_info.get('gemini_output', '')}")
+        logger.debug("--- END OBSERVABILITY ---")
 
         return AskResponse(answer=answer)
     except Exception as e:
@@ -95,6 +117,22 @@ async def ask(request: AskRequest):
             detail=f"An error occurred during RAG processing: {str(e)}",
         )
 
+
+@app.get("/api/portfolio", response_model=PortfolioResponse)
+async def get_portfolio():
+    # 1. Call the function first to get the text
+    resume_text = get_resume_content() 
+    
+    # 2. Return the data properly formatted
+    return PortfolioResponse(
+        about=resume_text,
+        skills=["Python", "JavaScript", "React", "FastAPI"],
+        experience=[],
+        projects=[
+            {"title": "DischargeIQ", "description": "AI-powered hospital workflow system."},
+            {"title": "VerseOnGo", "description": "Customizable poetry cards."}
+        ]
+    )
 
 # Serve Frontend Static Files (only in production)
 FRONTEND_DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

@@ -3,7 +3,7 @@
 **Name:** ARYA VIJAYAN  
 **Title:** Full Stack Developer | CSE Enthusiast | Innovation Award Winner  
 **Location:** Kozhikode, Kerala  
-**Phone:** +91 9847012574 
+**Phone:** +91 9847012574  
 **Email:** aryaparayullakandy@gmail.com  
 
 ---

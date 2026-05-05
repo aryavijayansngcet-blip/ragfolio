@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 
-const POLL_MS = 10000
+const POLL_MS = 5000
 const TIMEOUT_MS = 3000
 
 export function BackendStatus() {
   const [alive, setAlive] = useState<boolean | null>(null)
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
     const check = async () => {
       const controller = new AbortController();
       const fetchTimeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -28,7 +26,6 @@ export function BackendStatus() {
     const id = setInterval(check, POLL_MS)
     return () => {
       clearInterval(id)
-      clearTimeout(timeoutId)
     }
   }, [])
 
